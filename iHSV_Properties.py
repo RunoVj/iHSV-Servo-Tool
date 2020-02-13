@@ -9385,15 +9385,16 @@ class iHSV:
             [[0xA1], True, 'Real Torque Current'],
         ],
         'v6': [
-            [[0x0834, 0x0835], False, 'Pos Cmd'],
-            [[0x0836, 0x0837], False, 'Pos Feedback'],
+            [[0x0834, 0x0835], True, 'Pos Cmd'],
+            [[0x0836, 0x0837], True, 'Pos Feedback'],
             [[0x0838, 0x0839], True, 'Pos Error'],
-            # [[0x083A, 0x083B], True, 'Pos Cmd'],
-            # [[0x083C, 0x083D], True, 'Pos Feedback'],
-            # [[0x083E], True, 'Pos Error'],
+
+            [[0x083A, 0x083B], True, 'Pos Cmd'],
+            [[0x083C, 0x083D], True, 'Pos Feedback'],
+            [[0x083E], True, 'Pos Error'],
 
             [[0x0841], True, 'Vel Cmd [rpm]'],
-            [[0x0842], True, 'Vel Feedback [rpm]'],
+            [[0x0842], True, 'Vel Feedback [rpm]'], # d08.F.SP
 
             [[0x0843], True, 'Torque Cmd [%]'],
             [[0x0844], True, 'Torque Feedback [%]']

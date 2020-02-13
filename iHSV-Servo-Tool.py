@@ -147,10 +147,41 @@ class MainWindow(QMainWindow):
         self.settings = QSettings("IBB", "iHSV57 Servo Tool")
         self.connected = False
 
-        self.motorversion = 'v5'
+        self.motorversion = 'v6'
         self.ihsv = iHSV(self.motorversion)
 
-        ## Create some widgets to be placed inside
+        self.min_speed = -6000
+        self.max_speed = 6000
+        self.speed_slider = QSlider()
+        self.speed_slider.setMinimum(self.min_speed)
+        self.speed_slider.setMaximum(self.max_speed)
+        self.speed_slider.setPageStep(1)
+
+        self.speed_spin_box = QSpinBox()
+        self.speed_spin_box.setMinimum(self.min_speed)
+        self.speed_spin_box.setMaximum(self.max_speed)
+
+        self.brake_btn = QPushButton('Brake')
+
+        def spin_box_value_changed(value):
+            self.speed_slider.setValue(value)
+
+        def brake_pushed():
+            print('Brake!')
+            self.servo.write_register(0x0082, 100, functioncode=6, signed=True)
+
+        def speed_changed(value: int):
+            print(f"Speed value changed: {value}")
+            self.servo.write_register(0x0192, value, functioncode=6, signed=True)
+            print('Read encoder')
+            self.servo.read_registers(0x085C, 2)
+            self.speed_spin_box.setValue(value)
+            print(f'Read torgue: {self.servo.read_register(0x0844)}')
+
+        self.brake_btn.clicked.connect(brake_pushed)
+        self.speed_slider.valueChanged.connect(speed_changed)
+        self.speed_spin_box.valueChanged.connect(spin_box_value_changed)
+
         self.cbSelectMotorVersion = QComboBox()
         self.cbSelectComport = QComboBox()
         self.pbOpenCloseComport = QPushButton('Open Comport')
@@ -187,11 +218,8 @@ class MainWindow(QMainWindow):
 
         updateViews()
         self.plot.getViewBox().sigResized.connect(updateViews)
-
         self.vbox = QVBoxLayout()
-
         self.getDataPlots()
-
         self.groupBox = QGroupBox('Data plots')
         self.vbox.addStretch(1)
         self.groupBox.setLayout(self.vbox)
@@ -203,7 +231,14 @@ class MainWindow(QMainWindow):
         layout = QGridLayout(self.widget)
 
         ## Add widgets to the layout in their proper positions
-        layout.addWidget(self.plot, 0, 0, 1, 2)  # plot goes on top, spanning 2 columns
+        slider_btn_v_layout = QVBoxLayout()
+        slider_btn_v_layout.addWidget(self.speed_slider)
+        slider_btn_v_layout.addWidget(self.speed_spin_box)
+        slider_btn_v_layout.addWidget(self.brake_btn)
+        vert_layout = QHBoxLayout()
+        vert_layout.addWidget(self.plot)
+        vert_layout.addLayout(slider_btn_v_layout)
+        layout.addLayout(vert_layout, 0, 0, 1, 2)  # plot goes on top, spanning 2 columns
         layout.addWidget(self.groupBox, 0, 2)  # legend to the right
         layout.setColumnMinimumWidth(0, 200)
         layout.setColumnStretch(1, 1)
@@ -249,6 +284,7 @@ class MainWindow(QMainWindow):
         self.cbSelectParameterGroup.addItems(self.ihsv.get_parameter_group_list())
 
         self.createParameterTable()
+
 
     def getDataPlots(self):
         self.curves = []
@@ -301,9 +337,10 @@ class MainWindow(QMainWindow):
                 self.servo = minimalmodbus.Instrument(self.cbSelectComport.currentText(), 1)
                 self.servo.serial.baudrate = self.ihsv.get_rs232_settings('baudrate')
                 self.servo.serial.bytesize = self.ihsv.get_rs232_settings('bytesize')
-                self.servo.serial.parity   = self.ihsv.get_rs232_settings('parity')
+                self.servo.serial.parity = self.ihsv.get_rs232_settings('parity')
                 self.servo.serial.stopbits = self.ihsv.get_rs232_settings('stopbits')
-                self.servo.serial.timeout  = self.ihsv.get_rs232_settings('timeout')
+                self.servo.serial.timeout = self.ihsv.get_rs232_settings('timeout')
+
             except Exception as e:
                 print(e)
                 self.statusBar().showMessage("Failed to open port", 2000)
@@ -399,7 +436,11 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("Failed to convert Config Value...", 2000)
             return
         reg = self.ParamTable.addressList[row]
-        self.servo.write_register(reg, value, functioncode=6)
+        if reg == 0x0192:
+            print("That is he!")
+            self.servo.write_register(reg, value, functioncode=6, signed=True)
+        else:
+            self.servo.write_register(reg, value, functioncode=6, signed=False)
         self.statusBar().showMessage("Writing {0} to 0x{1:02x} done!".format(value, reg), 5000)
 
     def updateCurves(self):
@@ -433,6 +474,7 @@ class MainWindow(QMainWindow):
                 curve.appendData(values)
         except:
             print('Error updating data')
+
 
     def startStopMonitor(self):
         if (self.pbStartStopMonitor.text() == 'Start Monitor'):
@@ -473,7 +515,6 @@ class MainWindow(QMainWindow):
 
 if __name__ == '__main__':
     import sys
-
     app = QApplication(sys.argv)
     mainWin = MainWindow()
     mainWin.show()
